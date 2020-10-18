@@ -8,7 +8,12 @@ pub trait SerBin {
         s
     }
 
-    fn ser_bin(&self, s: &mut Vec<u8>);
+    fn ser_write<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()>;
+
+    fn ser_bin(&self, s: &mut Vec<u8>) {
+        let mut writer = std::io::Cursor::new(s);
+        self.ser_write(&mut writer).expect("out of memory");
+    }
 }
 
 pub trait DeBin: Sized {
@@ -16,7 +21,14 @@ pub trait DeBin: Sized {
         DeBin::de_bin(&mut 0, d)
     }
 
-    fn de_bin(o: &mut usize, d: &[u8]) -> Result<Self, DeBinErr>;
+    fn de_read<R: std::io::Read>(reader: &mut R) -> std::io::Result<Result<Self, DeBinErr>>;
+
+    fn de_bin(o: &mut usize, d: &[u8]) -> Result<Self, DeBinErr> {
+        let mut reader = std::io::Cursor::new(&d[*o..]);
+        let out = Self::de_read(&mut reader).expect("out of memory")?;
+        *o = reader.position() as usize;
+        Ok(out)
+    }
 }
 
 #[derive(Clone)]
